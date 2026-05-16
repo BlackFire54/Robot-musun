@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Ben Robot Değilim™</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      min-height: 100dvh;
+      font-family: 'Roboto', sans-serif;
+      overflow: hidden;
+      position: relative;
+      touch-action: none;
+      background: #0d0d1a;
+    }
+
+    .glow-orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); pointer-events: none; z-index: 0;
+      opacity: 0.18; animation: orbFloat linear infinite;
+    }
+    .orb1 { width:340px;height:340px;background:#7c3aed;top:-80px;left:-80px;animation-duration:18s; }
+    .orb2 { width:260px;height:260px;background:#0ea5e9;bottom:-60px;right:-60px;animation-duration:14s; }
+    .orb3 { width:200px;height:200px;background:#10b981;top:40%;left:30%;animation-duration:22s; }
+    @keyframes orbFloat {
+      0%,100%{transform:translate(0,0) scale(1);}
+      33%{transform:translate(30px,-20px) scale(1.1);}
+      66%{transform:translate(-20px,30px) scale(0.9);}
+    }
+
+    .grid-overlay {
+      position:fixed;inset:0;z-index:0;pointer-events:none;
+      background-image:
+        linear-gradient(rgba(0,255,180,0.035) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(0,255,180,0.035) 1px,transparent 1px);
+      background-size:44px 44px;
+    }
+
+    .stars { position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden; }
+    .star {
+      position:absolute;width:2px;height:2px;background:white;
+      border-radius:50%;opacity:0;animation:twinkle linear infinite;
+    }
+    @keyframes twinkle { 0%,100%{opacity:0;}50%{opacity:0.7;} }
+
+    .scanline {
+      position:fixed;inset:0;z-index:1;pointer-events:none;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+    }
+
+    h1 {
+      position:fixed;top:22px;left:50%;transform:translateX(-50%);
+      color:#00ffb4;font-size:0.62rem;letter-spacing:0.28em;
+      text-transform:uppercase;opacity:0.45;white-space:nowrap;
+      z-index:10;text-shadow:0 0 12px #00ffb4;
+    }
+
+    #captcha-box {
+      position:fixed;
+      background:rgba(249,249,249,0.97);
+      border:2px solid #d3d3d3;border-radius:10px;
+      padding:18px 14px;width:280px;
+      display:flex;align-items:center;gap:12px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05);
+      user-select:none;z-index:20;backdrop-filter:blur(4px);
+    }
+    #captcha-box.locked {
+      border-color:#4caf50;background:rgba(245,255,245,0.97);
+      box-shadow:0 8px 32px rgba(76,175,80,0.3),0 0 0 1px rgba(76,175,80,0.2);
+    }
+
+    #the-checkbox {
+      width:34px;height:34px;min-width:34px;
+      border:2px solid #999;border-radius:4px;
+      background:white;position:relative;flex-shrink:0;
+    }
+    #the-checkbox.checked { background:#4285f4;border-color:#4285f4; }
+    #the-checkbox.checked::after {
+      content:'✓';position:absolute;color:white;font-size:22px;
+      top:50%;left:50%;transform:translate(-50%,-50%);
+    }
+
+    .captcha-label { font-size:15px;color:#333;flex:1; }
+
+    .recaptcha-logo {
+      display:flex;flex-direction:column;align-items:center;
+      font-size:8px;color:#999;gap:2px;min-width:34px;
+    }
+    .recaptcha-logo .icon { font-size:22px; }
+
+    #lock {
+      position:fixed;font-size:48px;z-index:50;
+      cursor:grab;display:none;
+      filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+      touch-action:none;line-height:1;
+    }
+    #lock.dragging { cursor:grabbing;filter:drop-shadow(0 0 16px #fbbf24); }
+
+    #snap-hint {
+      position:fixed;border:2px dashed rgba(0,255,180,0.4);
+      border-radius:10px;z-index:15;pointer-events:none;display:none;
+      transition:border-color 0.2s,background 0.2s;
+    }
+    #snap-hint.active { border-color:rgba(0,255,180,0.9);background:rgba(0,255,180,0.07); }
+
+    /* Mesaj - iki satır destekli */
+    #message {
+      position:fixed;top:56px;left:50%;
+      transform:translateX(-50%);
+      padding:11px 22px;border-radius:12px;
+      font-weight:700;font-size:0.88rem;
+      display:none;
+      z-index:100;
+      max-width:88vw;
+      text-align:center;
+      line-height:1.4;
+      letter-spacing:0.01em;
+      white-space:normal;
+      word-break:keep-all;
+    }
+    #message.red    { background:#dc2626;color:#fff;box-shadow:0 4px 20px rgba(220,38,38,0.5); }
+    #message.yellow { background:#f59e0b;color:#1a1a2e;box-shadow:0 4px 20px rgba(245,158,11,0.5); }
+    #message.green  { background:#16a34a;color:#fff;box-shadow:0 4px 20px rgba(22,163,74,0.5); }
+    #message.blue   { background:#2563eb;color:#fff;box-shadow:0 4px 20px rgba(37,99,235,0.5); }
+
+    #message.show {
+      display:block;
+      animation:msgIn 0.35s cubic-bezier(.22,.68,0,1.4);
+    }
+    #message.hide {
+      display:block;
+      animation:msgOut 0.4s ease forwards;
+    }
+    @keyframes msgIn {
+      from{opacity:0;transform:translateX(-50%) translateY(-14px) scale(0.82);}
+      to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+    }
+    @keyframes msgOut {
+      from{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+      to{opacity:0;transform:translateX(-50%) translateY(-10px) scale(0.88);}
+    }
+
+    /* Sallama göstergesi */
+    #shake-indicator {
+      position:fixed;bottom:50px;left:50%;transform:translateX(-50%);
+      color:rgba(0,255,180,0.0);font-size:0.7rem;letter-spacing:0.12em;
+      z-index:10;transition:color 0.4s;white-space:nowrap;
+      text-align:center;
+    }
+    #shake-indicator.visible { color:rgba(0,255,180,0.55); }
+
+    #counter {
+      position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+      color:rgba(0,255,180,0.2);font-size:0.65rem;letter-spacing:0.12em;z-index:10;
+    }
+
+    @keyframes shake {
+      0%,100%{transform:rotate(0deg);}
+      20%{transform:rotate(-9deg);}40%{transform:rotate(9deg);}
+      60%{transform:rotate(-6deg);}80%{transform:rotate(6deg);}
+    }
+    .shake { animation:shake 0.22s ease; }
+
+    @keyframes impact {
+      0%{transform:scale(1);}30%{transform:scale(1.35,0.65);}
+      60%{transform:scale(0.85,1.2);}100%{transform:scale(1);}
+    }
+    .impact { animation:impact 0.28s ease; }
+
+    /* Sallama flash efekti */
+    #shake-flash {
+      position:fixed;inset:0;background:white;
+      opacity:0;pointer-events:none;z-index:200;
+      transition:opacity 0.1s;
+    }
+    #shake-flash.flash { opacity:0.15; }
+  </style>
+</head>
+<body>
+
+  <div class="glow-orb orb1"></div>
+  <div class="glow-orb orb2"></div>
+  <div class="glow-orb orb3"></div>
+  <div class="grid-overlay"></div>
+  <div class="stars" id="stars"></div>
+  <div class="scanline"></div>
+  <div id="shake-flash"></div>
+
+  <h1>🔐 Güvenlik Doğrulama Sistemi v9.4.2</h1>
+
+  <div id="captcha-box">
+    <div id="the-checkbox"></div>
+    <span class="captcha-label">Ben robot değilim</span>
+    <div class="recaptcha-logo">
+      <span class="icon">🛡️</span>
+      <small>reCAPTCHA</small>
+      <small>Gizlilik</small>
+    </div>
+  </div>
+
+  <div id="snap-hint"></div>
+  <div id="lock">🔓</div>
+  <div id="message"></div>
+  <div id="shake-indicator">📳 Sistem aktivasyon bekleniyor...</div>
+  <div id="counter">Kaçış: <span id="escape-count">0</span></div>
+
+<script>
+  /* ── YILDIZLAR ── */
+  const starsEl = document.getElementById('stars');
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + 'vw';
+    s.style.top  = Math.random() * 100 + 'vh';
+    s.style.animationDuration = (2 + Math.random() * 4) + 's';
+    s.style.animationDelay    = (Math.random() * 4) + 's';
+    starsEl.appendChild(s);
+  }
+
+  /* ── ELEMANLAR ── */
+  const box           = document.getElementById('captcha-box');
+  const checkbox      = document.getElementById('the-checkbox');
+  const lockEl        = document.getElementById('lock');
+  const message       = document.getElementById('message');
+  const escCount      = document.getElementById('escape-count');
+  const snapHint      = document.getElementById('snap-hint');
+  const shakeInd      = document.getElementById('shake-indicator');
+  const shakeFlash    = document.getElementById('shake-flash');
+
+  const BOX_W = 280, BOX_H = 74, LOCK_SIZE = 52;
+
+  let escapes = 0;
+  let phase   = 'escape'; // escape → shaking → physics → drag → locked → done
+  let msgTimer = null, hideTimer = null;
+
+  /* Fizik */
+  let lx, ly, vx, vy, physicsRunning = false;
+  const GRAVITY = 0.55, BOUNCE = 0.42, FRICTION = 0.87;
+
+  /* Sürükleme */
+  let dragging = false, dragOffX = 0, dragOffY = 0, snapped = false;
+
+  /* Sallama */
+  let shakeReady     = false; // kilit sahnesi başlayınca true
+  let shakeCooldown  = false;
+  let lastAcc        = { x: 0, y: 0, z: 0 };
+  let shakeHintShown = false;
+
+  /* ──────────────────────────────────────────
+     MESAJ HAVUZU
+     Tüm mesajlar buradan, her biri 1 kez gösterilir
+  ────────────────────────────────────────── */
+
+  // Kaçış sırasında arada çıkan ipucu/zorba mesajlar
+  // "shown" bayrağı ile takip edilir
+  const hintPool = [
+    // Zorbalama
+    { t:'😂 Haha, kaçtık!',                              c:'red',    d:2800 },
+    { t:'🤖 Sistemimiz seni tanıdı. Hoş geldin, robot.', c:'red',    d:3200 },
+    { t:'🏃 Bacakları olmayan robot gibi koşuyorsun!',   c:'red',    d:3200 },
+    { t:'💀 Bu kutucuk senden NEFRET ediyor.',           c:'red',    d:3000 },
+    { t:'😈 Buranın patronu benim. Sen değil.',          c:'red',    d:3000 },
+    { t:'🤡 Aptal aptal tıklıyorsun!',                  c:'red',    d:2800 },
+    { t:'😤 Hâlâ pes etmedin mi ya?',                   c:'red',    d:2800 },
+    { t:'🙄 Çok komiksin, devam et.',                   c:'red',    d:2800 },
+    { t:'👻 Kaç kere denedin? Saysana.',                 c:'red',    d:3000 },
+    { t:'😏 Kutucuk senden daha zeki.',                  c:'red',    d:2800 },
+    // Üstü kapalı sallama ipuçları
+    { t:'📳 Telefonun bir özelliği var, kullan.',        c:'blue',   d:3400 },
+    { t:'🌀 Bazen sistemleri sarsmak gerekir...',        c:'blue',   d:3400 },
+    { t:'💡 Bazı kilitleri elle açamazsın.',             c:'blue',   d:3400 },
+    { t:'🤔 Telefona bir bak. Belki yaratıcı ol.',       c:'blue',   d:3400 },
+    { t:'📡 Sistem farklı bir sinyal bekliyor.',         c:'blue',   d:3400 },
+    { t:'🎲 Farklı bir şey dene. Dokunmak değil.',      c:'blue',   d:3400 },
+    { t:'🔮 Cevap parmaklarında değil, bilek hareketinde.', c:'blue', d:3600 },
+    { t:'⚡ Sistem harekete geçmeyi seviyor...',        c:'blue',   d:3400 },
+  ].map(m => ({ ...m, shown: false }));
+
+  // Sallama ipuçları (sadece bunlar, yaklaştıkça daha direkt)
+  const shakeHints = [
+    { t:'📳 Sistem aktivasyon bekliyor... farklı düşün!', c:'blue', d:3600 },
+    { t:'🌀 Belki telefonu hareket ettirmeyi dene?',      c:'blue', d:3600 },
+    { t:'⚡ SALLA TELEFONU! Ne bekliyorsun?',             c:'yellow',d:3800 },
+  ].map(m => ({ ...m, shown: false }));
+
+  let shakeHintIndex = 0; // sırayla verilir
+
+  /* ── KUTU BAŞLANGIÇ ── */
+  function centerBox() {
+    box.style.transition = 'none';
+    box.style.left = (window.innerWidth  / 2 - BOX_W / 2) + 'px';
+    box.style.top  = (window.innerHeight / 2 - BOX_H / 2) + 'px';
+  }
+  centerBox();
+
+  function randomPos() {
+    const margin = 24;
+    const x = margin + Math.random() * (window.innerWidth  - BOX_W - margin * 2);
+    const y = 90     + Math.random() * (window.innerHeight - BOX_H - 130);
+    return { x, y };
+  }
+
+  /* ── KAÇIŞ (SONSUZ) ── */
+  function runAway() {
+    if (phase !== 'escape') return;
+    const { x, y } = randomPos();
+    const spd = Math.max(0.08, 0.18 - escapes * 0.003); // giderek hızlanır, min 80ms
+    box.style.transition = `left ${spd}s cubic-bezier(.22,.68,0,1.5), top ${spd}s cubic-bezier(.22,.68,0,1.5)`;
+    box.style.left = x + 'px';
+    box.style.top  = y + 'px';
+
+    escapes++;
+    escCount.textContent = escapes;
+    box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+
+// Her dokunuşta TEK mesaj sistemi
+
+// Her 4 dokunuşta bir ipucu göster
+if (escapes % 4 === 0 && shakeHintIndex < shakeHints.length) {
+	
+	const sh = shakeHints[shakeHintIndex++];
+	showMsg(sh.t, sh.c, sh.d);
+	
+} else {
+	
+	showRandomHint();
+	
+}
+  }
+
+  function showRandomHint() {
+
+  // Gösterilmemiş mesajları al
+  const available = hintPool.filter(m => !m.shown);
+
+  // Hepsi bittiyse çık
+  if (!available.length) return;
+
+  // Rastgele mesaj seç
+  const pick =
+    available[Math.floor(Math.random() * available.length)];
+
+  // Bir daha çıkmaması için işaretle
+  pick.shown = true;
+
+  // Mesajı göster
+  showMsg(pick.t, pick.c, pick.d);
+}
+
+  /* ── SALLAMA ALGILAMA ── */
+  const SHAKE_THRESHOLD = 18; // m/s² fark eşiği
+  let motionPermissionAsked = false;
+
+  function initMotion() {
+    // iOS 13+ izin gerektirir
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      if (motionPermissionAsked) return;
+      motionPermissionAsked = true;
+      DeviceMotionEvent.requestPermission().then(r => {
+        if (r === 'granted') window.addEventListener('devicemotion', onMotion);
+      }).catch(() => {});
+    } else {
+      window.addEventListener('devicemotion', onMotion);
+    }
+  }
+
+  // Sayfa açılır açılmaz motion'ı başlat
+  // (iOS'ta izin gerektiriyorsa ilk dokunuşta sor)
+  document.addEventListener('touchstart', () => {
+    initMotion();
+  }, { once: true });
+  initMotion();
+
+  function onMotion(e) {
+    const acc = e.accelerationIncludingGravity;
+    if (!acc) return;
+
+    const dx = Math.abs((acc.x || 0) - lastAcc.x);
+    const dy = Math.abs((acc.y || 0) - lastAcc.y);
+    const dz = Math.abs((acc.z || 0) - lastAcc.z);
+    lastAcc = { x: acc.x||0, y: acc.y||0, z: acc.z||0 };
+
+    const delta = dx + dy + dz;
+
+    // Kilit sahnesi: sallama ile kilidi düşür
+    if (phase === 'shaking' && delta > SHAKE_THRESHOLD && !shakeCooldown) {
+      shakeCooldown = true;
+      triggerLockDrop();
+      setTimeout(() => shakeCooldown = false, 2000);
+    }
+
+    // Escape aşamasında sallama görünür hale getir (ipucu için)
+    if (phase === 'escape' && delta > 8) {
+      shakeInd.classList.add('visible');
+      clearTimeout(shakeInd._t);
+      shakeInd._t = setTimeout(() => shakeInd.classList.remove('visible'), 1500);
+    }
+  }
+
+  /* ── KİLİT SAHNESİNE GEÇ ── */
+  // Kaçış bitmez, ama 8. kaçıştan sonra "shaking" moduna gireriz
+  // Kullanıcı sallayınca kilit düşer
+
+  // Aslında her kaçışta kontrol edelim
+  const _origRunAway = runAway;
+  // (yukarıda runAway içinde zaten phase===escape kontrolü var,
+  //  shaking aşamasında kutucuğa dokunmak artık çalışmaz)
+
+  /* Sallama modunda kutucuğa dokunulursa da ipucu ver */
+  box.addEventListener('touchstart', (e) => {
+    if (phase !== 'shaking') return;
+    e.preventDefault();
+    showMsg('🤷 Dokunmak işe yaramıyor artık... farklı düşün!', 'yellow', 3200);
+  }, { passive: false });
+
+  function triggerLockDrop() {
+    phase = 'physics';
+    shakeInd.classList.remove('visible');
+
+    // Ekran flash efekti
+    shakeFlash.classList.add('flash');
+    setTimeout(() => shakeFlash.classList.remove('flash'), 200);
+
+    showMsg('💥 SALLAYIN! Kilit düştü!', 'yellow', 3000);
+    setTimeout(dropLock, 400);
+  }
+
+  /* ── FİZİK ── */
+  function dropLock() {
+    lx = 40 + Math.random() * (window.innerWidth - LOCK_SIZE - 80);
+    ly = -60;
+    vx = (Math.random() - 0.5) * 6;
+    vy = 3;
+
+    lockEl.style.display = 'block';
+    lockEl.style.left = lx + 'px';
+    lockEl.style.top  = ly + 'px';
+
+    updateSnapHint();
+    snapHint.style.display = 'block';
+
+    physicsRunning = true;
+    requestAnimationFrame(physicsLoop);
+  }
+
+  function updateSnapHint() {
+    const r = box.getBoundingClientRect();
+    snapHint.style.left   = (r.left - 4) + 'px';
+    snapHint.style.top    = (r.top  - 4) + 'px';
+    snapHint.style.width  = (r.width  + 8) + 'px';
+    snapHint.style.height = (r.height + 8) + 'px';
+  }
+
+  function physicsLoop() {
+    if (!physicsRunning) return;
+    vy += GRAVITY; lx += vx; ly += vy;
+
+    const floor = window.innerHeight - LOCK_SIZE - 20;
+    const wallR = window.innerWidth  - LOCK_SIZE - 4;
+
+    if (ly >= floor) {
+      ly = floor; vy = -vy * BOUNCE; vx *= FRICTION;
+      if (Math.abs(vy) < 1.2) vy = 0;
+      lockEl.classList.remove('impact'); void lockEl.offsetWidth; lockEl.classList.add('impact');
+    }
+    if (lx <= 4)     { lx = 4;     vx =  Math.abs(vx) * 0.7; }
+    if (lx >= wallR) { lx = wallR; vx = -Math.abs(vx) * 0.7; }
+
+    lockEl.style.left = lx + 'px';
+    lockEl.style.top  = ly + 'px';
+
+    const stopped = Math.abs(vy) < 0.5 && ly >= floor - 2;
+    if (stopped) {
+      physicsRunning = false; vx = 0; vy = 0;
+      phase = 'drag';
+      setTimeout(() => showMsg('🔓 Sürükle, kutucuğa tak!', 'yellow', 4000), 600);
+      enableDrag();
+    } else {
+      requestAnimationFrame(physicsLoop);
+    }
+  }
+
+  /* ── SÜRÜKLEME ── */
+  function enableDrag() {
+    lockEl.addEventListener('touchstart', onDragStart, { passive: false });
+  }
+
+  function onDragStart(e) {
+    e.preventDefault();
+    if (snapped) return;
+    dragging = true; physicsRunning = false;
+    lockEl.classList.add('dragging');
+    const t = e.touches[0];
+    dragOffX = t.clientX - lx; dragOffY = t.clientY - ly;
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    document.addEventListener('touchend',  onDragEnd,  { passive: false });
+  }
+
+  function onDragMove(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    lx = t.clientX - dragOffX; ly = t.clientY - dragOffY;
+    lockEl.style.left = lx + 'px'; lockEl.style.top = ly + 'px';
+    snapHint.classList.toggle('active', isNearBox());
+  }
+
+  function onDragEnd(e) {
+    if (!dragging) return;
+    dragging = false; lockEl.classList.remove('dragging');
+    document.removeEventListener('touchmove', onDragMove);
+    document.removeEventListener('touchend',  onDragEnd);
+
+    if (isNearBox()) {
+      snapLock();
+    } else {
+      vy = 1; vx = (Math.random() - 0.5) * 3;
+      physicsRunning = true;
+      requestAnimationFrame(physicsLoop);
+      snapHint.classList.remove('active');
+    }
+  }
+
+  function isNearBox() {
+    const r = box.getBoundingClientRect();
+    return Math.hypot(
+      (lx + LOCK_SIZE/2) - (r.left + r.width/2),
+      (ly + LOCK_SIZE/2) - (r.top  + r.height/2)
+    ) < 90;
+  }
+
+  function snapLock() {
+    snapped = true; phase = 'locked';
+    const r = box.getBoundingClientRect();
+    lx = r.left + r.width/2  - LOCK_SIZE/2;
+    ly = r.top  - LOCK_SIZE + 8;
+    lockEl.style.transition = 'left 0.18s ease, top 0.18s ease';
+    lockEl.style.left = lx + 'px'; lockEl.style.top = ly + 'px';
+    lockEl.textContent = '🔒';
+    lockEl.style.filter = 'drop-shadow(0 0 14px #00ff88)';
+    snapHint.style.display = 'none';
+    box.classList.add('locked');
+    showMsg('🔒 Taktın! Şimdi kutucuğa bas!', 'green', 5000);
+    box.addEventListener('touchstart', onFinalTouch, { passive: false });
+  }
+
+  function onFinalTouch(e) {
+    e.preventDefault();
+    box.removeEventListener('touchstart', onFinalTouch);
+    phase = 'done';
+    checkbox.classList.add('checked');
+    lockEl.textContent = '🔒';
+    lockEl.style.filter = 'drop-shadow(0 0 20px #00ff88)';
+    showMsg('✅ Tamam tamam... belki robot değilsindir. Belki. 🤖', 'green', 9999);
+    spawnConfetti();
+  }
+
+  /* ── MESAJ ── */
+  function showMsg(text, color='red', duration=3000) {
+    clearTimeout(msgTimer); clearTimeout(hideTimer);
+    message.className = ''; void message.offsetWidth;
+    message.textContent = text;
+    message.className = `show ${color}`;
+    if (duration < 9000) {
+      hideTimer = setTimeout(() => {
+        message.className = `hide ${color}`;
+        msgTimer = setTimeout(() => { message.className = ''; }, 420);
+      }, duration);
+    }
+  }
+
+  /* ── KONFETİ ── */
+  function spawnConfetti() {
+    const s = document.createElement('style');
+    s.textContent = `@keyframes cfall{to{top:110vh;opacity:0;transform:rotate(720deg) translateX(var(--cx))}}`;
+    document.head.appendChild(s);
+    for (let i = 0; i < 80; i++) {
+      const el = document.createElement('div');
+      const sz = 6 + Math.random() * 10;
+      el.style.cssText = `position:fixed;width:${sz}px;height:${sz}px;
+        background:hsl(${Math.random()*360},100%,60%);
+        border-radius:${Math.random()>.5?'50%':'3px'};
+        left:${Math.random()*100}vw;top:-20px;z-index:999;
+        --cx:${(Math.random()-.5)*160}px;
+        animation:cfall ${1.2+Math.random()}s ease-in forwards;
+        animation-delay:${Math.random()*0.6}s;`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+  }
+
+ /* ── PHASE GEÇİŞ DÜZELTMESİ ──
+   Çift touchstart problemi çözüldü */
+
+let phaseUpgraded = false;
+
+/* Önceki handler varsa kaldır */
+if (box._escHandler) {
+  box.removeEventListener('touchstart', box._escHandler);
+}
+
+/* TEK touch handler */
+box._escHandler = (e) => {
+
+  // Sallama aşaması
+  if (phase === 'shaking') {
+    e.preventDefault();
+    showMsg('🤷 Dokunmak işe yaramıyor... farklı düşün!', 'yellow', 3000);
+    return;
+  }
+
+  // Escape dışında çalışmasın
+  if (phase !== 'escape') return;
+
+  e.preventDefault();
+
+  // 8. kaçıştan sonra shaking moduna geç
+  const remainingHints =
+  hintPool.filter(m => !m.shown).length;
+
+if (!phaseUpgraded && remainingHints === 0) {
+
+    phaseUpgraded = true;
+    phase = 'shaking';
+
+    shakeInd.classList.add('visible');
+
+    // Bir son kaçış yaptır
+    runAway();
+
+    setTimeout(() => {
+      showMsg(
+        '🔮 Sistem farklı bir şey bekliyor... hissediyorum.',
+        'blue',
+        4000
+      );
+    }, 800);
+
+    return;
+  }
+
+  runAway();
+};
+
+box.addEventListener(
+  'touchstart',
+  box._escHandler,
+  { passive: false }
+);;
+
+  // box touch handler'ını güncelle
+  box.removeEventListener('touchstart', box._escHandler);
+  box._escHandler = (e) => {
+    if (phase === 'shaking') {
+      e.preventDefault();
+      showMsg('🤷 Dokunmak işe yaramıyor... farklı düşün!', 'yellow', 3000);
+      return;
+    }
+    if (phase !== 'escape') return;
+    e.preventDefault();
+    if (!phaseUpgraded && escapes >= 7) {
+      phaseUpgraded = true;
+      phase = 'shaking';
+      shakeInd.classList.add('visible');
+      // Kaçmaya devam et ama artık sallama bekleniyor
+      runAway();
+      setTimeout(() => showMsg('🔮 Sistem farklı bir şey bekliyor... hissediyorum.', 'blue', 4000), 800);
+      return;
+    }
+    runAway();
+  };
+  box.addEventListener('touchstart', box._escHandler, { passive: false });
+</script>
+</body>
+</html>
